@@ -7,8 +7,8 @@ import { useEffect, useRef, useState } from "react";
 type SyncStatus = "loading" | "idle" | "saving" | "saved" | "error";
 
 /**
- * Loads data/user-data.json when present, then auto-saves edits to disk
- * (in addition to browser localStorage).
+ * Loads shared state from /api/data (cloud when configured), then
+ * auto-saves edits so phone / iPad / laptop stay in sync.
  */
 export function DataSync({
   onStatus,
@@ -22,7 +22,6 @@ export function DataSync({
   const lastSaved = useRef("");
   const [bootstrapped, setBootstrapped] = useState(false);
 
-  // Load project file once (preferred over seed when present)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -38,14 +37,22 @@ export function DataSync({
         if (!cancelled && json.exists && json.data) {
           replaceData(json.data);
           lastSaved.current = JSON.stringify(json.data);
-          onStatus?.("saved", "Loaded data/user-data.json");
+          const label =
+            json.mode === "cloud"
+              ? "Loaded from cloud"
+              : json.mode === "repo-seed"
+                ? "Loaded repo snapshot"
+                : "Loaded local data file";
+          onStatus?.("saved", label);
         } else if (json.mode === "browser-only") {
           onStatus?.(
             "idle",
-            "Hosted mode — saving in this browser only. Use Settings → Download backup.",
+            "No cloud yet — this browser only. Set up Supabase (docs/CLOUD_SETUP.md).",
           );
+        } else if (json.mode === "cloud") {
+          onStatus?.("idle", "Cloud ready — first edit will create your dataset");
         } else {
-          onStatus?.("idle", "No project file yet — will create on first edit");
+          onStatus?.("idle", "No saved data yet — will create on first edit");
         }
       } catch {
         if (!cancelled) onStatus?.("error", "Could not reach data API");
@@ -59,11 +66,9 @@ export function DataSync({
     return () => {
       cancelled = true;
     };
-    // intentionally once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Debounced auto-save to project folder
   useEffect(() => {
     if (!hydrated || !bootstrapped || !readyToSave.current) return;
 
@@ -80,15 +85,21 @@ export function DataSync({
           body: serialized,
         });
         if (!res.ok) throw new Error("save failed");
-        const json = (await res.json()) as { persisted?: boolean; mode?: string };
+        const json = (await res.json()) as {
+          persisted?: boolean;
+          mode?: string;
+          message?: string;
+        };
         lastSaved.current = serialized;
-        if (json.persisted === false || json.mode === "browser-only") {
-          onStatus?.("saved", "Saved in this browser (hosted mode)");
+        if (json.mode === "cloud") {
+          onStatus?.("saved", "Saved to cloud");
+        } else if (json.persisted === false || json.mode === "browser-only") {
+          onStatus?.("saved", "Saved in this browser only");
         } else {
-          onStatus?.("saved", "Saved to data/user-data.json");
+          onStatus?.("saved", "Saved locally");
         }
       } catch {
-        onStatus?.("error", "Auto-save to project folder failed");
+        onStatus?.("error", "Auto-save failed");
       }
     }, 700);
 

@@ -11,9 +11,11 @@
     "start:autostart": "zsh scripts/install-autostart.sh",
     "stop:autostart": "zsh scripts/uninstall-autostart.sh",
     "pull:data": "zsh scripts/pull-data.sh",
+    "stage:data": "zsh scripts/stage-data.sh",
     "open": "zsh scripts/open-app.sh"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.43.0",

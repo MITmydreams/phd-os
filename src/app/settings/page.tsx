@@ -6,7 +6,9 @@ import { Field, Input } from "@/components/ui/field";
 import { PageHeader, Panel, Section } from "@/components/ui/panel";
 import { downloadJson, isAppData, pickAppData } from "@/lib/persistence";
 import { useAppStore, useData } from "@/lib/store";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type DataMode = "cloud" | "file" | "repo-seed" | "browser-only" | "unknown";
 
 export default function SettingsPage() {
   const data = useData();
@@ -15,7 +17,21 @@ export default function SettingsPage() {
   const replaceData = useAppStore((s) => s.replaceData);
   const [confirmReset, setConfirmReset] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<DataMode>("unknown");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/data");
+        if (!res.ok) return;
+        const json = (await res.json()) as { mode?: DataMode };
+        if (json.mode) setMode(json.mode);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
 
   const exportBackup = () => {
     downloadJson(
@@ -25,7 +41,7 @@ export default function SettingsPage() {
     setMessage("Backup downloaded.");
   };
 
-  const saveToProject = async () => {
+  const saveNow = async () => {
     setMessage("Saving…");
     try {
       const res = await fetch("/api/data", {
@@ -34,17 +50,22 @@ export default function SettingsPage() {
         body: JSON.stringify(pickAppData(data)),
       });
       if (!res.ok) throw new Error("failed");
-      const json = (await res.json()) as { persisted?: boolean; message?: string };
-      if (json.persisted === false) {
-        setMessage(
-          json.message ??
-            "Hosted deploy: data stays in this browser. Download a backup JSON for safekeeping.",
-        );
-      } else {
-        setMessage("Saved to data/user-data.json in your project folder.");
-      }
+      const json = (await res.json()) as {
+        persisted?: boolean;
+        mode?: DataMode;
+        message?: string;
+      };
+      if (json.mode) setMode(json.mode);
+      setMessage(
+        json.message ??
+          (json.mode === "cloud"
+            ? "Saved to cloud — available on all devices."
+            : json.persisted === false
+              ? "Saved in this browser only. Set up cloud (docs/CLOUD_SETUP.md)."
+              : "Saved."),
+      );
     } catch {
-      setMessage("Could not save to project folder. Is the server running?");
+      setMessage("Save failed. Check the server / cloud configuration.");
     }
   };
 
@@ -57,22 +78,39 @@ export default function SettingsPage() {
         return;
       }
       replaceData(parsed);
-      await fetch("/api/data", {
+      const res = await fetch("/api/data", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed),
       });
-      setMessage("Imported backup and saved to project folder.");
+      const json = (await res.json()) as { mode?: DataMode; message?: string };
+      if (json.mode) setMode(json.mode);
+      setMessage(
+        json.mode === "cloud"
+          ? "Imported and saved to cloud — open the site on your phone to verify."
+          : "Imported backup.",
+      );
     } catch {
       setMessage("Import failed — check that the file is valid JSON.");
     }
   };
 
+  const modeLabel =
+    mode === "cloud"
+      ? "Cloud database (syncs across devices)"
+      : mode === "file"
+        ? "Local project file"
+        : mode === "repo-seed"
+          ? "Repo snapshot (read once)"
+          : mode === "browser-only"
+            ? "This browser only — cloud not configured"
+            : "Checking…";
+
   return (
     <div>
       <PageHeader
         title="Settings"
-        description="Personal preferences for this self-hosted copy"
+        description="Profile and where your application season data lives"
       />
 
       <Section title="Profile">
@@ -99,30 +137,41 @@ export default function SettingsPage() {
       </Section>
 
       <Section
-        title="Data persistence"
-        description="Edits auto-save in two places while the app is running"
+        title="Data sync"
+        description="For phone / iPad / any computer, use cloud (Supabase)"
       >
         <Panel className="space-y-4 p-4">
-          <div className="text-[13px] leading-relaxed text-ink-secondary">
-            <ol className="list-decimal space-y-2 pl-4">
-              <li>
-                <strong className="font-medium text-ink">Browser</strong> —{" "}
-                <code className="font-mono text-[12px]">localStorage</code> key{" "}
-                <code className="font-mono text-[12px]">phd-os-data</code> (survives
-                refresh; lost if you clear site data).
-              </li>
-              <li>
-                <strong className="font-medium text-ink">Project folder</strong> —{" "}
-                <code className="font-mono text-[12px]">data/user-data.json</code>{" "}
-                (auto-saved when you edit; survives browser clears; can be backed up
-                or committed).
-              </li>
-            </ol>
+          <div className="rounded-[var(--radius)] border border-border bg-bg px-3 py-2 text-[13px]">
+            <span className="text-ink-muted">Current mode: </span>
+            <span className="font-medium text-ink">{modeLabel}</span>
           </div>
 
+          {mode !== "cloud" ? (
+            <p className="text-[13px] leading-relaxed text-ink-secondary">
+              To edit on the website from any device, set up a free Supabase project and
+              add two env vars on Vercel. Step-by-step:{" "}
+              <code className="font-mono text-[12px]">docs/CLOUD_SETUP.md</code> in the
+              repo, or{" "}
+              <a
+                className="text-accent underline"
+                href="https://github.com/MITmydreams/phd-os/blob/main/docs/CLOUD_SETUP.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                CLOUD_SETUP on GitHub
+              </a>
+              .
+            </p>
+          ) : (
+            <p className="text-[13px] leading-relaxed text-ink-secondary">
+              Edits auto-save to the cloud. Open the same Vercel URL on iPhone or iPad to
+              see the latest data.
+            </p>
+          )}
+
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" onClick={saveToProject}>
-              Save to project now
+            <Button variant="primary" onClick={saveNow}>
+              Save now
             </Button>
             <Button variant="secondary" onClick={exportBackup}>
               Download backup JSON
@@ -159,10 +208,6 @@ export default function SettingsPage() {
             A quiet personal operating system for a PhD application season — not a
             generic tracker, not a Notion clone.
           </p>
-          <p className="mt-2 text-ink-muted">
-            V1 focuses on information architecture and workflow. No AI, no Gmail sync,
-            no multi-user collaboration.
-          </p>
         </Panel>
       </Section>
 
@@ -170,7 +215,7 @@ export default function SettingsPage() {
         open={confirmReset}
         onClose={() => setConfirmReset(false)}
         title="Reset all data?"
-        description="This replaces browser + project data with the demo 2026–27 seed."
+        description="This replaces your current data with the demo seed and saves that reset to cloud/local storage."
       >
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setConfirmReset(false)}>
@@ -187,7 +232,7 @@ export default function SettingsPage() {
                   body: JSON.stringify(pickAppData(useAppStore.getState())),
                 });
               } catch {
-                /* ignore — browser seed still applied */
+                /* ignore */
               }
               setConfirmReset(false);
               setMessage("Reset to demo seed.");

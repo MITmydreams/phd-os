@@ -4,6 +4,30 @@ How to add and edit content in each section, and where your data is actually sav
 
 ---
 
+## Syncing: local ↔ website ↔ GitHub
+
+### Recommended: cloud database (any device)
+
+If you mainly edit on the **website** and want the latest data on iPhone / iPad / laptop:
+
+→ Follow **[CLOUD_SETUP.md](./CLOUD_SETUP.md)** (free Supabase + 2 Vercel env vars).
+
+After that, cloud is the source of truth. No need to commit `user-data.json` for daily use.
+
+### Manual GitHub backup (optional)
+
+Still useful occasionally:
+
+```bash
+npm run stage:data
+git commit -m "Backup PhD OS data"
+git push
+```
+
+Or **Settings → Download backup JSON**.
+
+---
+
 ## Everyday URL (no `npm run dev`)
 
 Always open:

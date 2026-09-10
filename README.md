@@ -10,7 +10,7 @@ Single-user. No accounts — deploy your own copy with your own data.
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS v4
-- Zustand (`localStorage` + optional `data/user-data.json` when self-hosted)
+- Zustand (`localStorage` + optional local file + **Supabase cloud** for multi-device)
 
 ## Getting started
 
@@ -31,11 +31,15 @@ npm run open
 npm run stop:autostart
 ```
 
+### Cloud sync (phone / iPad / any computer)
+
+See [docs/CLOUD_SETUP.md](docs/CLOUD_SETUP.md). After Supabase is connected, edits on the Vercel URL sync across devices.
+
 ### Deploy (Vercel)
 
 Push to GitHub, then import the repo in [Vercel](https://vercel.com) (or run `npx vercel`).
 
-On Vercel, edits persist in the **browser** (`localStorage`). Download backups from Settings. Personal `data/user-data.json` is gitignored and not deployed.
+Without cloud env vars, hosted edits stay in that browser only.
 
 ## Keyboard
 
@@ -44,6 +48,7 @@ On Vercel, edits persist in the **browser** (`localStorage`). Download backups f
 ## Docs
 
 - [User guide](docs/USER_GUIDE.md) — how to add content in each section
+- [Cloud setup](docs/CLOUD_SETUP.md) — Supabase so phone / iPad / laptop share one dataset
 
 ## Scripts
 
