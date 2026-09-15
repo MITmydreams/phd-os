@@ -445,6 +445,11 @@ export default function ApplicationDetailPage() {
                               <StatusBadge status={task.priority} />
                               {task.dueDate ? <span>Due {formatDate(task.dueDate)}</span> : null}
                             </div>
+                            {task.notes ? (
+                              <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-secondary">
+                                {task.notes}
+                              </p>
+                            ) : null}
                           </div>
                           {task.status !== "Done" ? (
                             <Button
