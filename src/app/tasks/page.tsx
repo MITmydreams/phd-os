@@ -34,18 +34,27 @@ function dueLabel(due?: string) {
 function TaskRow({
   task,
   onComplete,
+  onOpen,
 }: {
   task: Task;
   onComplete: (id: string) => void;
+  onOpen?: (task: Task) => void;
 }) {
   const data = useData();
   const app = task.applicationId
     ? data.applications.find((a) => a.id === task.applicationId)
     : null;
+  const prof = task.professorId
+    ? data.professors.find((p) => p.id === task.professorId)
+    : null;
 
   return (
     <div className="flex items-start justify-between gap-3 px-4 py-3">
-      <div className="min-w-0">
+      <button
+        type="button"
+        className="min-w-0 flex-1 text-left"
+        onClick={() => onOpen?.(task)}
+      >
         <div
           className={cn(
             "text-[13px] font-medium",
@@ -59,16 +68,33 @@ function TaskRow({
           <StatusBadge status={task.status} />
           <span>{dueLabel(task.dueDate)}</span>
           {app ? (
-            <Link href={`/applications/${app.id}`} className="hover:text-accent">
+            <Link
+              href={`/applications/${app.id}`}
+              className="hover:text-accent"
+              onClick={(e) => e.stopPropagation()}
+            >
               {applicationLabel(data, app)}
             </Link>
           ) : (
             <span>General</span>
           )}
+          {prof ? <span>{prof.name}</span> : null}
         </div>
-      </div>
+        {task.notes ? (
+          <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-ink-secondary">
+            {task.notes}
+          </p>
+        ) : null}
+      </button>
       {task.status !== "Done" ? (
-        <Button size="sm" variant="ghost" onClick={() => onComplete(task.id)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onComplete(task.id);
+          }}
+        >
           <Check className="h-3.5 w-3.5" />
         </Button>
       ) : null}
@@ -83,6 +109,15 @@ export default function TasksPage() {
   const completeTask = useAppStore((s) => s.completeTask);
   const [view, setView] = useState<"list" | "board">("list");
   const [open, setOpen] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    priority: "Normal" as TaskPriority,
+    status: "Todo" as TaskStatus,
+    dueDate: "",
+    applicationId: "",
+    notes: "",
+  });
   const [statusFilter, setStatusFilter] = useState("Open");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -144,6 +179,32 @@ export default function TasksPage() {
       applicationId: "",
       notes: "",
     });
+  };
+
+  const openEdit = (task: Task) => {
+    setEditTask(task);
+    setEditForm({
+      title: task.title,
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate ?? "",
+      applicationId: task.applicationId ?? "",
+      notes: task.notes ?? "",
+    });
+  };
+
+  const onSaveEdit = () => {
+    if (!editTask || !editForm.title.trim()) return;
+    updateTask(editTask.id, {
+      title: editForm.title.trim(),
+      priority: editForm.priority,
+      status: editForm.status,
+      dueDate: editForm.dueDate || undefined,
+      applicationId: editForm.applicationId || undefined,
+      notes: editForm.notes.trim() || undefined,
+      completedAt: editForm.status === "Done" ? editTask.completedAt ?? new Date().toISOString().slice(0, 10) : undefined,
+    });
+    setEditTask(null);
   };
 
   return (
@@ -222,7 +283,11 @@ export default function TasksPage() {
               <ul className="divide-y divide-border">
                 {sorted.map((task) => (
                   <li key={task.id}>
-                    <TaskRow task={task} onComplete={completeTask} />
+                    <TaskRow
+                      task={task}
+                      onComplete={completeTask}
+                      onOpen={openEdit}
+                    />
                   </li>
                 ))}
               </ul>
@@ -270,7 +335,11 @@ export default function TasksPage() {
                           onDragEnd={() => setDragId(null)}
                           className="cursor-grab rounded-[var(--radius)] border border-border bg-bg-elevated active:cursor-grabbing"
                         >
-                          <TaskRow task={task} onComplete={completeTask} />
+                          <TaskRow
+                            task={task}
+                            onComplete={completeTask}
+                            onOpen={openEdit}
+                          />
                         </div>
                       ))}
                     </div>
@@ -344,6 +413,94 @@ export default function TasksPage() {
             </Button>
             <Button variant="primary" onClick={onCreate}>
               Create
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={!!editTask}
+        onClose={() => setEditTask(null)}
+        title="Edit Task"
+        description="Update details and notes for this task."
+      >
+        <div className="space-y-3">
+          <Field label="Title">
+            <Input
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Priority">
+              <Select
+                value={editForm.priority}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    priority: e.target.value as TaskPriority,
+                  })
+                }
+              >
+                {(["Urgent", "High", "Normal", "Low"] as TaskPriority[]).map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Status">
+              <Select
+                value={editForm.status}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, status: e.target.value as TaskStatus })
+                }
+              >
+                {BOARD.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Due date">
+              <Input
+                type="date"
+                value={editForm.dueDate}
+                onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+              />
+            </Field>
+            <Field label="Application">
+              <Select
+                value={editForm.applicationId}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, applicationId: e.target.value })
+                }
+              >
+                <option value="">General</option>
+                {data.applications.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {applicationLabel(data, a)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Notes">
+            <Textarea
+              value={editForm.notes}
+              onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+              className="min-h-28"
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setEditTask(null)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={onSaveEdit}>
+              Save
             </Button>
           </div>
         </div>
