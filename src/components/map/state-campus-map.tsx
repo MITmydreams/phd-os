@@ -49,6 +49,10 @@ export function StateCampusMap({
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
             background: #e8eef5;
           }
+          .apple-maps-root .apple-basemap-tiles {
+            /* Soften OSM contrast toward a calmer Maps-like look */
+            filter: saturate(0.78) contrast(0.92) brightness(1.04);
+          }
           .apple-maps-root .leaflet-control-attribution {
             background: rgba(255,255,255,0.72);
             backdrop-filter: blur(10px);
@@ -152,16 +156,13 @@ export function StateCampusMap({
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
-      // Light basemap — closer to Apple Maps default look than the editorial choropleth
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        {
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-          subdomains: "abcd",
-          maxZoom: 20,
-        },
-      ).addTo(map);
+      // Free OSM raster tiles — no API key. Light styling via CSS filters.
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+        className: "apple-basemap-tiles",
+      }).addTo(map);
 
       mapRef.current = map;
       setReady(true);
