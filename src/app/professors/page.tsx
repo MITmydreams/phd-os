@@ -105,10 +105,15 @@ export default function ProfessorsPage() {
         title="Professors"
         description="Academic CRM for faculty fit, outreach, and follow-ups."
         actions={
-          <Button variant="primary" onClick={() => setOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Add Professor
-          </Button>
+          <>
+            <Link href="/map">
+              <Button variant="ghost">Map</Button>
+            </Link>
+            <Button variant="primary" onClick={() => setOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Professor
+            </Button>
+          </>
         }
       />
 

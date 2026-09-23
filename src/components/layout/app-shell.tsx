@@ -9,6 +9,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   ListTodo,
+  Map,
   Menu,
   Search,
   Settings,
@@ -29,6 +30,7 @@ const nav = [
       { href: "/", label: "Overview", icon: LayoutDashboard },
       { href: "/applications", label: "Applications", icon: GraduationCap },
       { href: "/professors", label: "Professors", icon: Users },
+      { href: "/map", label: "Map", icon: Map },
     ],
   },
   {

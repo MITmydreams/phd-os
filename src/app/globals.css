@@ -171,3 +171,19 @@ h3 {
   border-radius: var(--radius);
   animation: skeleton 1.2s ease-in-out infinite;
 }
+
+@keyframes map-state-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes map-marker-in {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes map-pulse {
+  0% { transform: scale(1); opacity: 0.22; }
+  70% { transform: scale(1.85); opacity: 0; }
+  100% { transform: scale(1.85); opacity: 0; }
+}
