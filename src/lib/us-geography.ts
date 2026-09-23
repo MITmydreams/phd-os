@@ -218,6 +218,7 @@ const INSTITUTION_STATE_RULES: Array<{ match: string; state: RegionCode }> = [
   // Michigan
   { match: "university of michigan", state: "MI" },
   { match: "michigan state", state: "MI" },
+  { match: "wayne state", state: "MI" },
 
   // Wisconsin / Minnesota / Ohio
   { match: "university of wisconsin", state: "WI" },
