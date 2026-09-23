@@ -1,5 +1,6 @@
 "use client";
 
+import { StateCampusMap } from "@/components/map/state-campus-map";
 import { UsProfessorMap } from "@/components/map/us-professor-map";
 import {
   EmptyState,
@@ -12,6 +13,7 @@ import { useData } from "@/lib/store";
 import {
   OUTSIDE_US,
   UNKNOWN_REGION,
+  groupProfessorsByCampus,
   groupProfessorsByRegion,
   regionLabel,
 } from "@/lib/us-geography";
@@ -25,6 +27,7 @@ export default function MapPage() {
   const data = useData();
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedCampusId, setSelectedCampusId] = useState<string | null>(null);
 
   const { byState, outside, unknown, groups } = useMemo(
     () => groupProfessorsByRegion(data.professors),
@@ -39,6 +42,13 @@ export default function MapPage() {
 
   const usCount = data.professors.length - outside.length - unknown.length;
   const stateCount = byState.size;
+  const isUsState = Boolean(selected && selected.length === 2);
+
+  const campusGroups = useMemo(() => {
+    if (!isUsState || !selected) return { located: [], unresolved: [] };
+    const professors = byState.get(selected) ?? [];
+    return groupProfessorsByCampus(professors, selected);
+  }, [isUsState, selected, byState]);
 
   const focusGroup = useMemo(() => {
     if (!selected) return null;
@@ -64,6 +74,22 @@ export default function MapPage() {
     };
   }, [selected, byState, outside, unknown]);
 
+  const listProfessors = useMemo(() => {
+    if (!focusGroup) return data.professors;
+    if (selectedCampusId) {
+      const g = campusGroups.located.find(
+        (c) => c.campus.id === selectedCampusId,
+      );
+      return g?.professors ?? focusGroup.professors;
+    }
+    return focusGroup.professors;
+  }, [focusGroup, selectedCampusId, campusGroups, data.professors]);
+
+  const selectRegion = (code: string | null) => {
+    setSelected(code);
+    setSelectedCampusId(null);
+  };
+
   if (data.professors.length === 0) {
     return (
       <div>
@@ -87,7 +113,11 @@ export default function MapPage() {
       <PageHeader
         eyebrow="Geography"
         title="Professor map"
-        description="Interactive U.S. map of faculty you’ve added — hover for counts, click a state to inspect."
+        description={
+          isUsState
+            ? "Campus pins use real coordinates — tap a pin for faculty at that school."
+            : "Click a state to zoom into a street map and see each campus."
+        }
       />
 
       <StatStrip
@@ -100,78 +130,133 @@ export default function MapPage() {
       />
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)]">
-        <Panel className="overflow-hidden p-4 sm:p-5">
-          <UsProfessorMap
-            counts={counts}
-            selected={selected && selected.length === 2 ? selected : null}
-            onSelect={setSelected}
-          />
-        </Panel>
+        <div className="min-w-0">
+          {isUsState && selected ? (
+            <StateCampusMap
+              stateCode={selected}
+              campuses={campusGroups.located}
+              selectedCampusId={selectedCampusId}
+              onSelectCampus={setSelectedCampusId}
+              onBack={() => selectRegion(null)}
+            />
+          ) : (
+            <Panel className="overflow-hidden p-4 sm:p-5">
+              <UsProfessorMap
+                counts={counts}
+                selected={null}
+                onSelect={selectRegion}
+              />
+            </Panel>
+          )}
+        </div>
 
         <div className="flex flex-col gap-4">
           <Panel className="flex-1 p-4 sm:p-5">
             <Section
-              title={focusGroup ? focusGroup.label : "All regions"}
+              title={
+                selectedCampusId
+                  ? (campusGroups.located.find(
+                      (c) => c.campus.id === selectedCampusId,
+                    )?.campus.name ?? focusGroup?.label)
+                  : focusGroup
+                    ? focusGroup.label
+                    : "All regions"
+              }
               description={
                 focusGroup
-                  ? `${focusGroup.professors.length} professor${focusGroup.professors.length === 1 ? "" : "s"}`
-                  : "Select a state on the map, or pick a region below."
+                  ? `${listProfessors.length} professor${listProfessors.length === 1 ? "" : "s"}`
+                  : "Select a state on the map to zoom in."
               }
               actions={
                 selected ? (
                   <button
                     type="button"
-                    onClick={() => setSelected(null)}
+                    onClick={() => selectRegion(null)}
                     className="text-[12px] text-ink-muted hover:text-accent"
                   >
-                    Clear
+                    Back to U.S.
                   </button>
                 ) : null
               }
             >
-              <ul className="mt-3 space-y-2">
-                {(focusGroup ? focusGroup.professors : data.professors).map(
-                  (p, i) => (
-                    <li
-                      key={p.id}
-                      className="animate-in rounded-[var(--radius)] border border-border bg-bg px-3 py-2.5 transition-colors hover:border-border-strong"
-                      style={{ animationDelay: `${i * 30}ms` }}
+              {isUsState && campusGroups.located.length > 0 ? (
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {campusGroups.located.map((g) => (
+                    <button
+                      key={g.campus.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCampusId(
+                          selectedCampusId === g.campus.id
+                            ? null
+                            : g.campus.id,
+                        )
+                      }
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+                        selectedCampusId === g.campus.id
+                          ? "border-accent bg-accent-soft text-accent"
+                          : "border-border text-ink-secondary hover:border-border-strong",
+                      )}
                     >
-                      <Link
-                        href={`/professors/${p.id}`}
-                        className="block font-medium text-ink hover:text-accent"
-                      >
-                        {p.name}
-                      </Link>
-                      <div className="mt-0.5 flex items-start gap-1.5 text-[12px] text-ink-secondary">
-                        <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-ink-faint" />
-                        <span>{p.institution}</span>
+                      {g.campus.name}
+                      <span className="ml-1 font-mono opacity-70">
+                        {g.professors.length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              <ul className="mt-1 space-y-2">
+                {listProfessors.map((p, i) => (
+                  <li
+                    key={p.id}
+                    className="animate-in rounded-[var(--radius)] border border-border bg-bg px-3 py-2.5 transition-colors hover:border-border-strong"
+                    style={{ animationDelay: `${i * 30}ms` }}
+                  >
+                    <Link
+                      href={`/professors/${p.id}`}
+                      className="block font-medium text-ink hover:text-accent"
+                    >
+                      {p.name}
+                    </Link>
+                    <div className="mt-0.5 flex items-start gap-1.5 text-[12px] text-ink-secondary">
+                      <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-ink-faint" />
+                      <span>{p.institution}</span>
+                    </div>
+                    {p.researchAreas.length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {p.researchAreas.slice(0, 3).map((a) => (
+                          <span
+                            key={a}
+                            className="rounded-sm bg-bg-muted px-1.5 py-0.5 text-[10px] text-ink-muted"
+                          >
+                            {a}
+                          </span>
+                        ))}
                       </div>
-                      {p.researchAreas.length > 0 ? (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {p.researchAreas.slice(0, 3).map((a) => (
-                            <span
-                              key={a}
-                              className="rounded-sm bg-bg-muted px-1.5 py-0.5 text-[10px] text-ink-muted"
-                            >
-                              {a}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </li>
-                  ),
-                )}
-                {focusGroup && focusGroup.professors.length === 0 ? (
+                    ) : null}
+                  </li>
+                ))}
+                {focusGroup && listProfessors.length === 0 ? (
                   <li className="py-6 text-center text-[13px] text-ink-muted">
-                    No professors mapped to this state yet.
+                    No professors mapped here yet.
                   </li>
                 ) : null}
               </ul>
+
+              {isUsState && campusGroups.unresolved.length > 0 ? (
+                <p className="mt-3 text-[11px] text-ink-faint">
+                  {campusGroups.unresolved.length} professor
+                  {campusGroups.unresolved.length === 1 ? "" : "s"} in this
+                  state without a campus pin yet.
+                </p>
+              ) : null}
             </Section>
           </Panel>
 
-          {(outside.length > 0 || unknown.length > 0) && (
+          {(outside.length > 0 || unknown.length > 0) && !isUsState && (
             <Panel className="p-4 sm:p-5">
               <div className="mb-2 flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.08em] text-ink-muted">
                 <Globe2 className="h-3.5 w-3.5" />
@@ -182,7 +267,7 @@ export default function MapPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setSelected(
+                      selectRegion(
                         selected === OUTSIDE_US ? null : OUTSIDE_US,
                       )
                     }
@@ -201,7 +286,7 @@ export default function MapPage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setSelected(
+                      selectRegion(
                         selected === UNKNOWN_REGION ? null : UNKNOWN_REGION,
                       )
                     }
@@ -222,55 +307,57 @@ export default function MapPage() {
         </div>
       </div>
 
-      <Panel className="mt-5 p-4 sm:p-5">
-        <Section
-          title="By state"
-          description="Ranked by how many of your professors land in each region."
-        >
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {groups.map((g) => (
-              <button
-                key={g.code}
-                type="button"
-                onClick={() =>
-                  setSelected(selected === g.code ? null : g.code)
-                }
-                className={cn(
-                  "flex items-center justify-between rounded-[var(--radius)] border px-3 py-2.5 text-left transition-colors",
-                  selected === g.code
-                    ? "border-accent bg-accent-soft"
-                    : "border-border bg-bg hover:border-border-strong",
-                )}
-              >
-                <div>
-                  <div className="text-[13px] font-medium text-ink">
-                    {g.label}
-                  </div>
-                  <div className="mt-0.5 text-[11px] text-ink-muted">
-                    {g.professors
-                      .slice(0, 2)
-                      .map((p) => p.name.replace(/^Prof\.?\s*/i, ""))
-                      .join(" · ")}
-                    {g.professors.length > 2
-                      ? ` +${g.professors.length - 2}`
-                      : ""}
-                  </div>
-                </div>
-                <div
+      {!isUsState ? (
+        <Panel className="mt-5 p-4 sm:p-5">
+          <Section
+            title="By state"
+            description="Ranked by how many of your professors land in each region."
+          >
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {groups.map((g) => (
+                <button
+                  key={g.code}
+                  type="button"
+                  onClick={() =>
+                    selectRegion(selected === g.code ? null : g.code)
+                  }
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full font-mono text-[12px] font-semibold",
+                    "flex items-center justify-between rounded-[var(--radius)] border px-3 py-2.5 text-left transition-colors",
                     selected === g.code
-                      ? "bg-accent text-[var(--bg-elevated)]"
-                      : "bg-accent-soft text-accent",
+                      ? "border-accent bg-accent-soft"
+                      : "border-border bg-bg hover:border-border-strong",
                   )}
                 >
-                  {g.professors.length}
-                </div>
-              </button>
-            ))}
-          </div>
-        </Section>
-      </Panel>
+                  <div>
+                    <div className="text-[13px] font-medium text-ink">
+                      {g.label}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-ink-muted">
+                      {g.professors
+                        .slice(0, 2)
+                        .map((p) => p.name.replace(/^Prof\.?\s*/i, ""))
+                        .join(" · ")}
+                      {g.professors.length > 2
+                        ? ` +${g.professors.length - 2}`
+                        : ""}
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full font-mono text-[12px] font-semibold",
+                      selected === g.code
+                        ? "bg-accent text-[var(--bg-elevated)]"
+                        : "bg-accent-soft text-accent",
+                    )}
+                  >
+                    {g.professors.length}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Section>
+        </Panel>
+      ) : null}
     </div>
   );
 }
