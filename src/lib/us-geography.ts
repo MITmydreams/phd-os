@@ -166,6 +166,7 @@ const INSTITUTION_STATE_RULES: Array<{ match: string; state: RegionCode }> = [
   { match: "princeton", state: "NJ" },
   { match: "rutgers", state: "NJ" },
   { match: "stevens institute", state: "NJ" },
+  { match: "stevens", state: "NJ" },
 
   // Pennsylvania
   { match: "carnegie mellon", state: "PA" },
@@ -240,6 +241,8 @@ const INSTITUTION_STATE_RULES: Array<{ match: string; state: RegionCode }> = [
 
   // North Carolina
   { match: "duke", state: "NC" },
+  { match: "university of north carolina at charlotte", state: "NC" },
+  { match: "unc charlotte", state: "NC" },
   { match: "unc chapel", state: "NC" },
   { match: "university of north carolina", state: "NC" },
   { match: "nc state", state: "NC" },
@@ -424,6 +427,7 @@ export const CAMPUS_PINS: CampusPin[] = [
   // New Jersey
   { id: "princeton", match: "princeton", name: "Princeton University", city: "Princeton", state: "NJ", lat: 40.3431, lng: -74.6551 },
   { id: "rutgers", match: "rutgers", name: "Rutgers University", city: "New Brunswick", state: "NJ", lat: 40.5008, lng: -74.4474 },
+  { id: "stevens", match: "stevens", name: "Stevens Institute of Technology", city: "Hoboken", state: "NJ", lat: 40.7448, lng: -74.0257 },
 
   // Pennsylvania
   { id: "cmu", match: "carnegie mellon", name: "Carnegie Mellon", city: "Pittsburgh", state: "PA", lat: 40.4433, lng: -79.9436 },
@@ -469,6 +473,12 @@ export const CAMPUS_PINS: CampusPin[] = [
 
   // North Carolina
   { id: "duke", match: "duke", name: "Duke University", city: "Durham", state: "NC", lat: 36.0014, lng: -78.9382 },
+  { id: "uncc", match: "university of north carolina at charlotte", name: "UNC Charlotte", city: "Charlotte", state: "NC", lat: 35.3071, lng: -80.7352 },
+  { id: "uncc2", match: "unc charlotte", name: "UNC Charlotte", city: "Charlotte", state: "NC", lat: 35.3071, lng: -80.7352 },
+
+  // Florida
+  { id: "fsu", match: "florida state", name: "Florida State University", city: "Tallahassee", state: "FL", lat: 30.4419, lng: -84.2985 },
+  { id: "uf", match: "university of florida", name: "University of Florida", city: "Gainesville", state: "FL", lat: 29.6436, lng: -82.3549 },
 
   // Maryland
   { id: "jhu", match: "johns hopkins", name: "Johns Hopkins", city: "Baltimore", state: "MD", lat: 39.3299, lng: -76.6205 },

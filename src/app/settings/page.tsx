@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
 import { PageHeader, Panel, Section } from "@/components/ui/panel";
 import { downloadJson, isAppData, pickAppData } from "@/lib/persistence";
+import { hasMapTilerKey } from "@/lib/maptiler";
 import { useAppStore, useData } from "@/lib/store";
 import { useEffect, useRef, useState } from "react";
 
@@ -133,6 +134,39 @@ export default function SettingsPage() {
               onChange={(e) => updateSettings({ timezone: e.target.value })}
             />
           </Field>
+        </Panel>
+      </Section>
+
+      <Section
+        title="Map tiles"
+        description="High-detail campus maps use a free MapTiler API key"
+      >
+        <Panel className="space-y-3 p-4">
+          <div className="rounded-[var(--radius)] border border-border bg-bg px-3 py-2 text-[13px]">
+            <span className="text-ink-muted">MapTiler key: </span>
+            <span className="font-medium text-ink">
+              {hasMapTilerKey() ? "Configured (HD streets)" : "Not set — using blurry OSM preview"}
+            </span>
+          </div>
+          <p className="text-[13px] leading-relaxed text-ink-secondary">
+            1. Create a free key at{" "}
+            <a
+              className="text-accent underline"
+              href="https://cloud.maptiler.com/account/keys/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              MapTiler Cloud
+            </a>
+            .
+            <br />
+            2. In Vercel → Project → Settings → Environment Variables, add{" "}
+            <code className="font-mono text-[12px]">NEXT_PUBLIC_MAPTILER_KEY</code>{" "}
+            for Production (and Preview if you want).
+            <br />
+            3. Redeploy. State drill-down maps become sharp, and unknown campuses can be
+            geocoded to real coordinates.
+          </p>
         </Panel>
       </Section>
 

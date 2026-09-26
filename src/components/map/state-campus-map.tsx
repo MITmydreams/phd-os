@@ -1,17 +1,28 @@
 "use client";
 
-import type { CampusProfessorGroup } from "@/lib/us-geography";
-import { STATE_VIEW, regionLabel } from "@/lib/us-geography";
+import type { CampusPin, CampusProfessorGroup } from "@/lib/us-geography";
+import {
+  STATE_NAMES,
+  STATE_VIEW,
+  regionLabel,
+} from "@/lib/us-geography";
+import {
+  geocodeInstitution,
+  getMapTilerKey,
+  mapTilerStreetsUrl,
+} from "@/lib/maptiler";
 import { cn } from "@/lib/utils";
+import type { Professor } from "@/lib/types";
 import { ChevronLeft, MapPin } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 export function StateCampusMap({
   stateCode,
-  campuses,
+  campuses: knownCampuses,
+  unresolvedProfessors = [],
   selectedCampusId,
   onSelectCampus,
   onBack,
@@ -19,6 +30,7 @@ export function StateCampusMap({
 }: {
   stateCode: string;
   campuses: CampusProfessorGroup[];
+  unresolvedProfessors?: Professor[];
   selectedCampusId: string | null;
   onSelectCampus: (id: string | null) => void;
   onBack: () => void;
@@ -28,19 +40,85 @@ export function StateCampusMap({
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<Map<string, LeafletMarker>>(new Map());
   const [ready, setReady] = useState(false);
+  const [tileMode, setTileMode] = useState<"maptiler" | "osm">("osm");
+  const [geocoded, setGeocoded] = useState<CampusProfessorGroup[]>([]);
+  const [geocoding, setGeocoding] = useState(false);
   const pinCssId = useId().replace(/:/g, "");
+
+  const mapKey = getMapTilerKey();
+
+  // Geocode institutions that aren't in the static campus table
+  useEffect(() => {
+    if (!mapKey || unresolvedProfessors.length === 0) {
+      setGeocoded([]);
+      return;
+    }
+
+    let cancelled = false;
+    setGeocoding(true);
+
+    void (async () => {
+      const byInst = new Map<string, Professor[]>();
+      for (const p of unresolvedProfessors) {
+        const key = p.institution.trim();
+        if (!key) continue;
+        const list = byInst.get(key) ?? [];
+        list.push(p);
+        byInst.set(key, list);
+      }
+
+      const stateName = STATE_NAMES[stateCode] ?? stateCode;
+      const groups: CampusProfessorGroup[] = [];
+
+      for (const [institution, professors] of byInst) {
+        const hit = await geocodeInstitution(
+          institution,
+          stateCode,
+          stateName,
+          mapKey,
+        );
+        if (!hit) continue;
+        const id = `geo_${institution.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)}`;
+        const campus: CampusPin = {
+          id,
+          match: institution.toLowerCase(),
+          name: institution,
+          city: hit.placeName.split(",")[0]?.trim() || stateName,
+          state: stateCode,
+          lat: hit.lat,
+          lng: hit.lng,
+        };
+        groups.push({ campus, professors });
+      }
+
+      if (!cancelled) {
+        setGeocoded(groups);
+        setGeocoding(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapKey, unresolvedProfessors, stateCode]);
+
+  const campuses = useMemo(() => {
+    const seen = new Set(knownCampuses.map((g) => g.campus.id));
+    const merged = [...knownCampuses];
+    for (const g of geocoded) {
+      if (!seen.has(g.campus.id)) merged.push(g);
+    }
+    return merged;
+  }, [knownCampuses, geocoded]);
 
   useEffect(() => {
     let cancelled = false;
-    let map: LeafletMap | null = null;
 
     async function boot() {
       if (!mapEl.current) return;
       const L = (await import("leaflet")).default;
-
       if (cancelled || !mapEl.current) return;
 
-      // Inject Apple-Maps-like pin styles once
       if (!document.getElementById(`apple-pin-${pinCssId}`)) {
         const style = document.createElement("style");
         style.id = `apple-pin-${pinCssId}`;
@@ -48,10 +126,6 @@ export function StateCampusMap({
           .apple-maps-root .leaflet-container {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
             background: #e8eef5;
-          }
-          .apple-maps-root .apple-basemap-tiles {
-            /* Soften OSM contrast toward a calmer Maps-like look */
-            filter: saturate(0.78) contrast(0.92) brightness(1.04);
           }
           .apple-maps-root .leaflet-control-attribution {
             background: rgba(255,255,255,0.72);
@@ -86,10 +160,7 @@ export function StateCampusMap({
           .apple-maps-root .leaflet-control-zoom-in {
             border-bottom: 1px solid rgba(60,60,67,0.12) !important;
           }
-          .apple-pin {
-            background: transparent;
-            border: none;
-          }
+          .apple-pin { background: transparent; border: none; }
           .apple-pin-inner {
             position: relative;
             width: 28px;
@@ -102,20 +173,19 @@ export function StateCampusMap({
             transform: scale(1.18);
             filter: drop-shadow(0 6px 12px rgba(0,0,0,0.32));
           }
-          .apple-pin-inner svg {
-            display: block;
-            width: 28px;
-            height: 40px;
-          }
+          .apple-pin-inner svg { display: block; width: 28px; height: 40px; }
           .apple-pin-label {
             position: absolute;
             left: 50%;
             bottom: calc(100% + 6px);
             transform: translateX(-50%);
             white-space: nowrap;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
             padding: 5px 10px;
             border-radius: 980px;
-            background: rgba(255,255,255,0.92);
+            background: rgba(255,255,255,0.94);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             box-shadow: 0 4px 18px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06);
@@ -124,11 +194,6 @@ export function StateCampusMap({
             font-weight: 600;
             letter-spacing: -0.01em;
             pointer-events: none;
-            opacity: 0;
-            transition: opacity 160ms ease;
-          }
-          .apple-pin-inner.is-active .apple-pin-label,
-          .apple-pin-inner:hover .apple-pin-label {
             opacity: 1;
           }
           .apple-pin-count {
@@ -147,22 +212,34 @@ export function StateCampusMap({
       }
 
       const view = STATE_VIEW[stateCode] ?? { lat: 39.8, lng: -98.5, zoom: 5 };
-      map = L.map(mapEl.current, {
+      const map = L.map(mapEl.current, {
         zoomControl: false,
         attributionControl: true,
         minZoom: 4,
-        maxZoom: 16,
+        maxZoom: 18,
       }).setView([view.lat, view.lng], view.zoom);
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
-      // Free OSM raster tiles — no API key. Light styling via CSS filters.
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-        className: "apple-basemap-tiles",
-      }).addTo(map);
+      if (mapKey) {
+        L.tileLayer(mapTilerStreetsUrl(mapKey), {
+          tileSize: 512,
+          zoomOffset: -1,
+          minZoom: 1,
+          maxZoom: 18,
+          attribution:
+            '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noreferrer">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>',
+          crossOrigin: true,
+        }).addTo(map);
+        setTileMode("maptiler");
+      } else {
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+        }).addTo(map);
+        setTileMode("osm");
+      }
 
       mapRef.current = map;
       setReady(true);
@@ -179,9 +256,8 @@ export function StateCampusMap({
       }
       setReady(false);
     };
-  }, [stateCode, pinCssId]);
+  }, [stateCode, pinCssId, mapKey]);
 
-  // Sync markers whenever campus set / selection changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
@@ -191,7 +267,6 @@ export function StateCampusMap({
       const L = (await import("leaflet")).default;
       if (cancelled || !mapRef.current) return;
 
-      // Clear old markers
       for (const m of markersRef.current.values()) m.remove();
       markersRef.current.clear();
 
@@ -207,7 +282,7 @@ export function StateCampusMap({
           iconAnchor: [14, 40],
           html: `
             <div class="apple-pin-inner ${active ? "is-active" : ""}">
-              <div class="apple-pin-label">${escapeHtml(campus.name)}</div>
+              <div class="apple-pin-label">${escapeHtml(shortCampusName(campus.name))}</div>
               <svg viewBox="0 0 28 40" aria-hidden="true">
                 <path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.268 21.732 0 14 0z"
                   fill="${active ? "#ff3b30" : "#ff453a"}"/>
@@ -233,11 +308,11 @@ export function StateCampusMap({
       }
 
       if (latLngs.length === 1) {
-        map.setView(latLngs[0], 11, { animate: true });
+        map.setView(latLngs[0], 14, { animate: true });
       } else if (latLngs.length > 1) {
         map.fitBounds(L.latLngBounds(latLngs), {
-          padding: [56, 56],
-          maxZoom: 11,
+          padding: [64, 64],
+          maxZoom: 13,
           animate: true,
         });
       } else {
@@ -245,7 +320,6 @@ export function StateCampusMap({
         if (view) map.setView([view.lat, view.lng], view.zoom, { animate: true });
       }
 
-      // Fix tile sizing after container reveal
       requestAnimationFrame(() => map.invalidateSize());
     })();
 
@@ -269,58 +343,62 @@ export function StateCampusMap({
     >
       <div ref={mapEl} className="h-[min(62vh,520px)] w-full min-h-[320px]" />
 
-      {/* Floating frosted controls — Mac Maps chrome */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[1000] flex items-start justify-between gap-3 p-3 sm:p-4">
         <button
           type="button"
           onClick={onBack}
           className="pointer-events-auto inline-flex items-center gap-1 rounded-full px-3 py-2 text-[13px] font-semibold text-[#007aff] transition active:scale-[0.98]"
-          style={{
-            background: "rgba(255,255,255,0.86)",
-            backdropFilter: "blur(18px)",
-            WebkitBackdropFilter: "blur(18px)",
-            boxShadow:
-              "0 4px 20px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.06)",
-          }}
+          style={frost}
         >
           <ChevronLeft className="h-4 w-4" />
           United States
         </button>
 
-        <div
-          className="pointer-events-auto max-w-[55%] rounded-2xl px-3.5 py-2 text-right"
-          style={{
-            background: "rgba(255,255,255,0.86)",
-            backdropFilter: "blur(18px)",
-            WebkitBackdropFilter: "blur(18px)",
-            boxShadow:
-              "0 4px 20px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.06)",
-          }}
-        >
+        <div className="pointer-events-auto max-w-[55%] rounded-2xl px-3.5 py-2 text-right" style={frost}>
           <div className="text-[15px] font-semibold tracking-[-0.02em] text-[#1c1c1e]">
             {regionLabel(stateCode)}
           </div>
           <div className="text-[11px] text-[#8e8e93]">
-            {campuses.length} campus{campuses.length === 1 ? "" : "es"} ·{" "}
-            {campuses.reduce((n, g) => n + g.professors.length, 0)} professor
-            {campuses.reduce((n, g) => n + g.professors.length, 0) === 1
-              ? ""
-              : "s"}
+            {campuses.length} campus{campuses.length === 1 ? "" : "es"}
+            {geocoding ? " · locating…" : ""}
+            {" · "}
+            {tileMode === "maptiler" ? "MapTiler HD" : "OSM preview"}
           </div>
         </div>
       </div>
 
-      {/* Selected campus sheet */}
-      {selected ? (
+      {!mapKey ? (
+        <div
+          className="pointer-events-auto absolute inset-x-3 bottom-3 z-[1000] rounded-2xl p-3.5 text-left sm:inset-x-4 sm:bottom-4"
+          style={frost}
+        >
+          <div className="text-[13px] font-semibold text-[#1c1c1e]">
+            Add a free MapTiler key for sharp campus maps
+          </div>
+          <p className="mt-1 text-[12px] leading-relaxed text-[#636366]">
+            1) Sign up at{" "}
+            <a
+              className="text-[#007aff] underline"
+              href="https://cloud.maptiler.com/account/keys/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              MapTiler Cloud
+            </a>{" "}
+            → copy API key → 2) Vercel → Project → Settings → Environment
+            Variables → add{" "}
+            <code className="rounded bg-black/5 px-1 font-mono text-[11px]">
+              NEXT_PUBLIC_MAPTILER_KEY
+            </code>{" "}
+            → Redeploy. Then pins sit on HD streets with building-level detail.
+          </p>
+        </div>
+      ) : null}
+
+      {mapKey && selected ? (
         <div
           className="absolute inset-x-3 bottom-3 z-[1000] animate-in rounded-2xl p-3.5 sm:inset-x-4 sm:bottom-4"
-          style={{
-            background: "rgba(255,255,255,0.92)",
-            backdropFilter: "blur(22px)",
-            WebkitBackdropFilter: "blur(22px)",
-            boxShadow:
-              "0 10px 40px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.06)",
-          }}
+          style={frost}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -330,6 +408,9 @@ export function StateCampusMap({
               <div className="mt-0.5 flex items-center gap-1 text-[12px] text-[#8e8e93]">
                 <MapPin className="h-3 w-3" />
                 {selected.campus.city}, {selected.campus.state}
+                <span className="opacity-50">
+                  · {selected.campus.lat.toFixed(4)}, {selected.campus.lng.toFixed(4)}
+                </span>
               </div>
             </div>
             <button
@@ -367,10 +448,23 @@ export function StateCampusMap({
   );
 }
 
+const frost: CSSProperties = {
+  background: "rgba(255,255,255,0.88)",
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.12), 0 0 0 0.5px rgba(0,0,0,0.06)",
+};
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function shortCampusName(name: string) {
+  return name
+    .replace(/^University of /i, "U. of ")
+    .replace(/ Institute of Technology$/i, " Tech");
 }

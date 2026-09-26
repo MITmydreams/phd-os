@@ -135,6 +135,7 @@ export default function MapPage() {
             <StateCampusMap
               stateCode={selected}
               campuses={campusGroups.located}
+              unresolvedProfessors={campusGroups.unresolved}
               selectedCampusId={selectedCampusId}
               onSelectCampus={setSelectedCampusId}
               onBack={() => selectRegion(null)}
