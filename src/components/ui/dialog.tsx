@@ -20,7 +20,7 @@ export function Dialog({
   description?: string;
   children: ReactNode;
   wide?: boolean;
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "xl";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -33,8 +33,15 @@ export function Dialog({
 
   if (!open) return null;
 
+  const isXl = size === "xl";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]">
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex justify-center px-3 sm:px-4",
+        isXl ? "items-stretch py-3 sm:py-5" : "items-start pt-[12vh]",
+      )}
+    >
       <button
         aria-label="Close dialog backdrop"
         className="absolute inset-0 bg-ink/30 backdrop-blur-[1px]"
@@ -45,11 +52,15 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby="dialog-title"
         className={cn(
-          "relative z-10 w-full animate-in rounded-[var(--radius-lg)] border border-border bg-bg-elevated shadow-[var(--shadow-md)]",
-          wide || size === "lg" ? "max-w-2xl" : "max-w-md",
+          "relative z-10 flex w-full animate-in flex-col rounded-[var(--radius-lg)] border border-border bg-bg-elevated shadow-[var(--shadow-md)]",
+          isXl
+            ? "max-h-[calc(100vh-1.5rem)] max-w-5xl sm:max-h-[calc(100vh-2.5rem)]"
+            : wide || size === "lg"
+              ? "max-w-2xl"
+              : "max-w-md",
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div>
             <h2 id="dialog-title" className="font-serif text-lg text-ink">
               {title}
@@ -62,7 +73,14 @@ export function Dialog({
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="px-4 py-4">{children}</div>
+        <div
+          className={cn(
+            "px-4 py-4",
+            isXl && "flex min-h-0 flex-1 flex-col overflow-hidden",
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

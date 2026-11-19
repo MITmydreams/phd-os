@@ -23,7 +23,7 @@ import {
   type FitPriority,
 } from "@/lib/types";
 import { formatDate, formatDateLong, todayISO } from "@/lib/utils";
-import { ExternalLink, Link2, Mail, Plus } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, Mail, Plus } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -41,6 +41,7 @@ export default function ProfessorDetailPage() {
   const [linkOpen, setLinkOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [readingEmailId, setReadingEmailId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"body" | "all" | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [fitEditId, setFitEditId] = useState<string | null>(null);
   const [fitEditForm, setFitEditForm] = useState({
@@ -816,19 +817,23 @@ export default function ProfessorDetailPage() {
 
       <Dialog
         open={emailOpen}
-        onClose={() => setEmailOpen(false)}
+        onClose={() => {
+          setEmailOpen(false);
+          setCopied(null);
+        }}
         title="Record Email"
-        description="Log outreach without leaving the CRM."
-        wide
+        description="Draft here, then copy into Gmail when ready."
+        size="xl"
       >
-        <div className="space-y-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
           <Field label="Subject">
             <Input
               value={emailForm.subject}
               onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+              placeholder="Prospective PhD student — …"
             />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Field label="Direction">
               <Select
                 value={emailForm.direction}
@@ -861,8 +866,6 @@ export default function ProfessorDetailPage() {
                 ))}
               </Select>
             </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <Field label="Date">
               <Input
                 type="date"
@@ -870,7 +873,7 @@ export default function ProfessorDetailPage() {
                 onChange={(e) => setEmailForm({ ...emailForm, date: e.target.value })}
               />
             </Field>
-            <Field label="Follow-up date">
+            <Field label="Follow-up">
               <Input
                 type="date"
                 value={emailForm.followUpDate}
@@ -898,20 +901,72 @@ export default function ProfessorDetailPage() {
               })}
             </Select>
           </Field>
-          <Field label="Content">
+          <Field label="Email body" className="flex min-h-0 flex-1 flex-col">
             <Textarea
               value={emailForm.content}
               onChange={(e) => setEmailForm({ ...emailForm, content: e.target.value })}
-              className="min-h-32"
+              placeholder="Dear Professor …"
+              className="min-h-[min(52vh,420px)] flex-1 resize-none font-sans text-[14px] leading-relaxed"
             />
           </Field>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setEmailOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={onRecordEmail}>
-              Save
-            </Button>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                disabled={!emailForm.content.trim()}
+                onClick={async () => {
+                  await navigator.clipboard.writeText(emailForm.content);
+                  setCopied("body");
+                  window.setTimeout(() => setCopied(null), 1600);
+                }}
+              >
+                {copied === "body" ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {copied === "body" ? "Copied body" : "Copy body"}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={!emailForm.subject.trim() && !emailForm.content.trim()}
+                onClick={async () => {
+                  const block = [
+                    emailForm.subject.trim()
+                      ? `Subject: ${emailForm.subject.trim()}`
+                      : null,
+                    emailForm.subject.trim() ? "" : null,
+                    emailForm.content,
+                  ]
+                    .filter((line) => line !== null)
+                    .join("\n");
+                  await navigator.clipboard.writeText(block);
+                  setCopied("all");
+                  window.setTimeout(() => setCopied(null), 1600);
+                }}
+              >
+                {copied === "all" ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {copied === "all" ? "Copied" : "Copy subject + body"}
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setEmailOpen(false);
+                  setCopied(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={onRecordEmail}>
+                Save
+              </Button>
+            </div>
           </div>
         </div>
       </Dialog>
