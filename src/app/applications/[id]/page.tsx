@@ -1,5 +1,6 @@
 "use client";
 
+import { EmailReader } from "@/components/email-reader";
 import { StatusBadge, ProgressBar } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
@@ -54,6 +55,7 @@ export default function ApplicationDetailPage() {
   const completeTask = useAppStore((s) => s.completeTask);
   const [tab, setTab] = useState<Tab>("Documents");
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
+  const [readingEmailId, setReadingEmailId] = useState<string | null>(null);
 
   const app = data.applications.find((a) => a.id === id);
 
@@ -192,9 +194,15 @@ export default function ApplicationDetailPage() {
                         <li key={doc.id} className="px-4 py-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <div className="text-[13px] font-medium">{doc.title}</div>
+                              <Link
+                                href={`/documents/${doc.id}`}
+                                className="text-[13px] font-medium hover:text-accent"
+                              >
+                                {doc.title}
+                              </Link>
                               <div className="mt-0.5 text-[12px] text-ink-muted">
                                 {doc.category} · {ver?.label ?? "—"} · {formatDate(ver?.date)}
+                                {ver?.url ? " · file attached" : ""}
                               </div>
                             </div>
                             <StatusBadge status={doc.status} />
@@ -389,19 +397,28 @@ export default function ApplicationDetailPage() {
                       .sort((a, b) => b.date.localeCompare(a.date))
                       .map((e) => (
                         <li key={e.id} className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="text-[13px] font-medium">{e.subject}</div>
-                              <div className="mt-0.5 text-[12px] text-ink-muted">
-                                {e.direction} · {e.sender} → {e.recipient} ·{" "}
-                                {formatDate(e.date)}
+                          <button
+                            type="button"
+                            onClick={() => setReadingEmailId(e.id)}
+                            className="w-full rounded-[var(--radius)] text-left hover:bg-bg-hover/60"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="text-[13px] font-medium">{e.subject}</div>
+                                <div className="mt-0.5 text-[12px] text-ink-muted">
+                                  {e.direction} · {e.sender} → {e.recipient} ·{" "}
+                                  {formatDate(e.date)}
+                                </div>
                               </div>
+                              <StatusBadge status={e.status} />
                             </div>
-                            <StatusBadge status={e.status} />
-                          </div>
-                          <p className="mt-2 line-clamp-3 text-[12px] leading-relaxed text-ink-secondary">
-                            {e.content}
-                          </p>
+                            <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-ink-secondary">
+                              {e.content}
+                            </p>
+                            <div className="mt-1.5 text-[11px] font-medium text-accent">
+                              Open full email
+                            </div>
+                          </button>
                         </li>
                       ))}
                   </ul>
@@ -610,6 +627,10 @@ export default function ApplicationDetailPage() {
           </Section>
         </aside>
       </div>
+      <EmailReader
+        email={emails.find((e) => e.id === readingEmailId) ?? null}
+        onClose={() => setReadingEmailId(null)}
+      />
     </div>
   );
 }

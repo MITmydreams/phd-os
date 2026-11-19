@@ -57,8 +57,21 @@ type Store = AppData & {
   createPaper: (input: Omit<Paper, "id" | "createdAt">) => string;
   updatePaper: (id: string, partial: Partial<Paper>) => void;
   createTopic: (input: Omit<ResearchTopic, "id">) => string;
-  createDocument: (input: Omit<Document, "id" | "createdAt" | "updatedAt" | "versions"> & { versionLabel?: string }) => string;
-  addDocumentVersion: (documentId: string, label: string, notes?: string) => void;
+  createDocument: (
+    input: Omit<Document, "id" | "createdAt" | "updatedAt" | "versions"> & {
+      versionLabel?: string;
+      fileUrl?: string;
+      fileName?: string;
+      mimeType?: string;
+    },
+  ) => string;
+  addDocumentVersion: (
+    documentId: string,
+    label: string,
+    notes?: string,
+    file?: { url: string; fileName?: string; mimeType?: string },
+  ) => void;
+  updateDocument: (id: string, partial: Partial<Document>) => void;
   recordEmail: (input: Omit<Email, "id">) => string;
   updateRecommendation: (id: string, partial: Partial<Recommendation>) => void;
   addTimelineEvent: (event: Omit<TimelineEvent, "id">) => void;
@@ -303,7 +316,7 @@ export const useAppStore = create<Store>()(
 
       createDocument: (input) => {
         const id = uid("doc");
-        const { versionLabel, ...rest } = input;
+        const { versionLabel, fileUrl, fileName, mimeType, ...rest } = input;
         set((s) => ({
           documents: [
             {
@@ -315,6 +328,9 @@ export const useAppStore = create<Store>()(
                   version: 1,
                   label: versionLabel ?? "v1",
                   date: todayISO(),
+                  url: fileUrl,
+                  fileName,
+                  mimeType,
                   isCurrent: true,
                 },
               ],
@@ -333,7 +349,14 @@ export const useAppStore = create<Store>()(
         return id;
       },
 
-      addDocumentVersion: (documentId, label, notes) =>
+      updateDocument: (id, partial) =>
+        set((s) => ({
+          documents: s.documents.map((d) =>
+            d.id === id ? { ...d, ...partial, updatedAt: todayISO() } : d,
+          ),
+        })),
+
+      addDocumentVersion: (documentId, label, notes, file) =>
         set((s) => ({
           documents: s.documents.map((d) => {
             if (d.id !== documentId) return d;
@@ -349,6 +372,9 @@ export const useAppStore = create<Store>()(
                   label,
                   date: todayISO(),
                   notes,
+                  url: file?.url,
+                  fileName: file?.fileName,
+                  mimeType: file?.mimeType,
                   isCurrent: true,
                 },
               ],

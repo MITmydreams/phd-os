@@ -12,6 +12,7 @@ export function Dialog({
   description,
   children,
   wide,
+  size = "md",
 }: {
   open: boolean;
   onClose: () => void;
@@ -19,6 +20,7 @@ export function Dialog({
   description?: string;
   children: ReactNode;
   wide?: boolean;
+  size?: "md" | "lg";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -44,7 +46,7 @@ export function Dialog({
         aria-labelledby="dialog-title"
         className={cn(
           "relative z-10 w-full animate-in rounded-[var(--radius-lg)] border border-border bg-bg-elevated shadow-[var(--shadow-md)]",
-          wide ? "max-w-xl" : "max-w-md",
+          wide || size === "lg" ? "max-w-2xl" : "max-w-md",
         )}
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">

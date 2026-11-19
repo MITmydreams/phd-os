@@ -1,5 +1,6 @@
 "use client";
 
+import { EmailReader } from "@/components/email-reader";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -39,6 +40,7 @@ export default function ProfessorDetailPage() {
   const prof = data.professors.find((p) => p.id === id);
   const [linkOpen, setLinkOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [readingEmailId, setReadingEmailId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [fitEditId, setFitEditId] = useState<string | null>(null);
   const [fitEditForm, setFitEditForm] = useState({
@@ -453,18 +455,27 @@ export default function ProfessorDetailPage() {
               <ul className="divide-y divide-border">
                 {emails.map((e) => (
                   <li key={e.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-[13px] font-medium">{e.subject}</div>
-                        <div className="mt-0.5 text-[12px] text-ink-muted">
-                          {e.direction} · {formatDateLong(e.date)}
+                    <button
+                      type="button"
+                      onClick={() => setReadingEmailId(e.id)}
+                      className="w-full rounded-[var(--radius)] text-left transition-colors hover:bg-bg-hover/60"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[13px] font-medium">{e.subject}</div>
+                          <div className="mt-0.5 text-[12px] text-ink-muted">
+                            {e.direction} · {formatDateLong(e.date)}
+                          </div>
                         </div>
+                        <StatusBadge status={e.status} />
                       </div>
-                      <StatusBadge status={e.status} />
-                    </div>
-                    <p className="mt-2 line-clamp-3 text-[12px] leading-relaxed text-ink-secondary">
-                      {e.content}
-                    </p>
+                      <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-ink-secondary">
+                        {e.content}
+                      </p>
+                      <div className="mt-1.5 text-[11px] font-medium text-accent">
+                        Open full email
+                      </div>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -904,6 +915,11 @@ export default function ProfessorDetailPage() {
           </div>
         </div>
       </Dialog>
+
+      <EmailReader
+        email={emails.find((e) => e.id === readingEmailId) ?? null}
+        onClose={() => setReadingEmailId(null)}
+      />
     </div>
   );
 }

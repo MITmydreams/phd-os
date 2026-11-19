@@ -159,6 +159,8 @@ export interface DocumentVersion {
   label: string;
   date: string;
   url?: string;
+  fileName?: string;
+  mimeType?: string;
   notes?: string;
   isCurrent: boolean;
 }

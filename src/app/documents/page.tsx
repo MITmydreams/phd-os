@@ -12,10 +12,14 @@ import {
   StatStrip,
 } from "@/components/ui/panel";
 import { applicationLabel, currentDocumentVersion } from "@/lib/selectors";
+import {
+  readFileAsAttachment,
+  type AttachedFile,
+} from "@/lib/files";
 import { useAppStore, useData } from "@/lib/store";
 import type { DocumentCategory, DocumentStatus } from "@/lib/types";
 import { formatDate, formatDateLong } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { FileUp, Plus } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -45,6 +49,9 @@ export default function DocumentsPage() {
     notes: "",
   });
   const [versionForm, setVersionForm] = useState({ label: "", notes: "" });
+  const [createFile, setCreateFile] = useState<AttachedFile | null>(null);
+  const [versionFile, setVersionFile] = useState<AttachedFile | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return data.documents.filter(
@@ -57,6 +64,20 @@ export default function DocumentsPage() {
     count: data.documents.filter((d) => d.category === c).length,
   }));
 
+  const pickFile = async (
+    picked: File | null,
+    setter: (file: AttachedFile | null) => void,
+  ) => {
+    setFileError(null);
+    setter(null);
+    if (!picked) return;
+    try {
+      setter(await readFileAsAttachment(picked));
+    } catch (err) {
+      setFileError(err instanceof Error ? err.message : "Could not attach file.");
+    }
+  };
+
   const onCreate = () => {
     if (!form.title) return;
     createDocument({
@@ -66,8 +87,13 @@ export default function DocumentsPage() {
       applicationIds: form.applicationId ? [form.applicationId] : [],
       notes: form.notes || undefined,
       versionLabel: form.versionLabel || "v1",
+      fileUrl: createFile?.url,
+      fileName: createFile?.fileName,
+      mimeType: createFile?.mimeType,
     });
     setAddOpen(false);
+    setCreateFile(null);
+    setFileError(null);
     setForm({
       title: "",
       category: "SOP",
@@ -80,10 +106,22 @@ export default function DocumentsPage() {
 
   const onAddVersion = () => {
     if (!versionDocId || !versionForm.label) return;
-    addDocumentVersion(versionDocId, versionForm.label, versionForm.notes || undefined);
+    addDocumentVersion(
+      versionDocId,
+      versionForm.label,
+      versionForm.notes || undefined,
+      versionFile
+        ? {
+            url: versionFile.url,
+            fileName: versionFile.fileName,
+            mimeType: versionFile.mimeType,
+          }
+        : undefined,
+    );
     setVersionOpen(false);
     setVersionDocId("");
     setVersionForm({ label: "", notes: "" });
+    setVersionFile(null);
   };
 
   return (
@@ -164,8 +202,19 @@ export default function DocumentsPage() {
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-[13px] font-medium">{doc.title}</span>
+                                    <Link
+                                      href={`/documents/${doc.id}`}
+                                      className="text-[13px] font-medium hover:text-accent"
+                                    >
+                                      {doc.title}
+                                    </Link>
                                     <StatusBadge status={doc.status} />
+                                    {ver?.url ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] text-ink-faint">
+                                        <FileUp className="h-3 w-3" />
+                                        file
+                                      </span>
+                                    ) : null}
                                   </div>
                                   <div className="mt-0.5 text-[12px] text-ink-muted">
                                     Current {ver?.label ?? "—"} · Updated{" "}
@@ -215,21 +264,30 @@ export default function DocumentsPage() {
                                     </div>
                                   ) : null}
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() => {
-                                    setVersionDocId(doc.id);
-                                    setVersionForm({
-                                      label: `v${Math.max(...doc.versions.map((v) => v.version), 0) + 1}`,
-                                      notes: "",
-                                    });
-                                    setVersionOpen(true);
-                                  }}
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                  Version
-                                </Button>
+                                <div className="flex gap-1.5">
+                                  <Link href={`/documents/${doc.id}`}>
+                                    <Button size="sm" variant="ghost">
+                                      Open
+                                    </Button>
+                                  </Link>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => {
+                                      setVersionDocId(doc.id);
+                                      setVersionForm({
+                                        label: `v${Math.max(...doc.versions.map((v) => v.version), 0) + 1}`,
+                                        notes: "",
+                                      });
+                                      setVersionFile(null);
+                                      setFileError(null);
+                                      setVersionOpen(true);
+                                    }}
+                                  >
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Version
+                                  </Button>
+                                </div>
                               </div>
                             </li>
                           );
@@ -248,7 +306,7 @@ export default function DocumentsPage() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         title="Add Document"
-        description="Create a document record and its first version."
+        description="Upload a file (PDF, Word, image) and keep version history."
       >
         <div className="space-y-3">
           <Field label="Title">
@@ -311,6 +369,21 @@ export default function DocumentsPage() {
               </Select>
             </Field>
           </div>
+          <Field label="File">
+            <input
+              type="file"
+              className="block w-full text-[13px] text-ink-secondary file:mr-3 file:rounded-[var(--radius)] file:border file:border-border file:bg-bg file:px-2.5 file:py-1"
+              onChange={(e) => void pickFile(e.target.files?.[0] ?? null, setCreateFile)}
+            />
+            {createFile ? (
+              <p className="mt-1 text-[12px] text-ink-muted">Attached: {createFile.fileName}</p>
+            ) : (
+              <p className="mt-1 text-[12px] text-ink-faint">Optional — max 3 MB so it can sync.</p>
+            )}
+            {fileError && addOpen ? (
+              <p className="mt-1 text-[12px] text-danger">{fileError}</p>
+            ) : null}
+          </Field>
           <Field label="Notes">
             <Textarea
               value={form.notes}
@@ -341,6 +414,21 @@ export default function DocumentsPage() {
               onChange={(e) => setVersionForm({ ...versionForm, label: e.target.value })}
               placeholder="v2"
             />
+          </Field>
+          <Field label="File">
+            <input
+              type="file"
+              className="block w-full text-[13px] text-ink-secondary file:mr-3 file:rounded-[var(--radius)] file:border file:border-border file:bg-bg file:px-2.5 file:py-1"
+              onChange={(e) => void pickFile(e.target.files?.[0] ?? null, setVersionFile)}
+            />
+            {versionFile ? (
+              <p className="mt-1 text-[12px] text-ink-muted">Attached: {versionFile.fileName}</p>
+            ) : (
+              <p className="mt-1 text-[12px] text-ink-faint">Optional — max 3 MB.</p>
+            )}
+            {fileError && versionOpen ? (
+              <p className="mt-1 text-[12px] text-danger">{fileError}</p>
+            ) : null}
           </Field>
           <Field label="Notes">
             <Textarea

@@ -379,7 +379,7 @@ export function searchAll(data: AppData, query: string) {
         id: doc.id,
         title: doc.title,
         subtitle: doc.category,
-        href: "/documents",
+        href: `/documents/${doc.id}`,
       });
     }
   }
