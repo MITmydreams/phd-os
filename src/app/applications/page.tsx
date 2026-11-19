@@ -96,6 +96,7 @@ export default function ApplicationsPage() {
     cycle: data.settings.cycle,
     deadline: "",
     funding: "",
+    portalUrl: "",
     portalEmail: "",
     portalPassword: "",
   });
@@ -115,6 +116,7 @@ export default function ApplicationsPage() {
     if (!form.schoolName || !form.deadline) return;
     const id = createApplication({
       ...form,
+      portalUrl: form.portalUrl.trim() || undefined,
       portalEmail: form.portalEmail.trim() || undefined,
       portalPassword: form.portalPassword || undefined,
     });
@@ -126,6 +128,7 @@ export default function ApplicationsPage() {
       cycle: data.settings.cycle,
       deadline: "",
       funding: "",
+      portalUrl: "",
       portalEmail: "",
       portalPassword: "",
     });
@@ -355,6 +358,15 @@ export default function ApplicationsPage() {
               />
             </Field>
           </div>
+          <Field label="Application link">
+            <Input
+              type="url"
+              value={form.portalUrl}
+              onChange={(e) => setForm({ ...form, portalUrl: e.target.value })}
+              placeholder="https://apply.school.edu/…"
+              autoComplete="off"
+            />
+          </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Portal email">
               <Input
@@ -376,7 +388,7 @@ export default function ApplicationsPage() {
             </Field>
           </div>
           <p className="text-[11px] text-ink-faint">
-            Portal login is stored with your private application data (not shown on the board).
+            Link + login are stored with your private application data (not shown on the board).
           </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>

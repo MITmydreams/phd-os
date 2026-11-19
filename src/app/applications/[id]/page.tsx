@@ -608,9 +608,37 @@ export default function ApplicationDetailPage() {
 
           <Section
             title="Portal login"
-            description="Email & password for this school's application system"
+            description="Application link, email & password for this school's system"
           >
             <Panel className="space-y-3 p-4">
+              <Field label="Application link">
+                <div className="flex gap-1.5">
+                  <Input
+                    type="url"
+                    value={app.portalUrl ?? ""}
+                    onChange={(e) =>
+                      updateApplication(app.id, {
+                        portalUrl: e.target.value.trim() || undefined,
+                      })
+                    }
+                    placeholder="https://apply.school.edu/…"
+                    autoComplete="off"
+                    className="min-w-0 flex-1"
+                  />
+                  {app.portalUrl ? (
+                    <a
+                      href={app.portalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex"
+                    >
+                      <Button size="sm" variant="secondary" aria-label="Open application link">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </a>
+                  ) : null}
+                </div>
+              </Field>
               <Field label="Registration email">
                 <div className="flex gap-1.5">
                   <Input

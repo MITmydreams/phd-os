@@ -16,12 +16,13 @@ import type {
   ProfessorFit,
   Recommendation,
   ResearchTopic,
+  School,
   Task,
   TaskPriority,
   TaskStatus,
   TimelineEvent,
 } from "./types";
-import { todayISO, uid } from "./utils";
+import { deriveShortName, todayISO, uid } from "./utils";
 
 type CreateApplicationInput = {
   schoolName: string;
@@ -30,6 +31,7 @@ type CreateApplicationInput = {
   cycle: string;
   deadline: string;
   funding?: string;
+  portalUrl?: string;
   portalEmail?: string;
   portalPassword?: string;
 };
@@ -43,6 +45,7 @@ type Store = AppData & {
   createApplication: (input: CreateApplicationInput) => string;
   updateApplicationStatus: (id: string, status: ApplicationStatus) => void;
   updateApplication: (id: string, partial: Partial<Application>) => void;
+  updateSchool: (id: string, partial: Partial<School>) => void;
   createProfessor: (input: Omit<Professor, "id" | "createdAt">) => string;
   updateProfessor: (id: string, partial: Partial<Professor>) => void;
   linkProfessorToApplication: (input: {
@@ -86,6 +89,17 @@ function pushEvent(
   return [{ ...event, id: uid("tl") }, ...events];
 }
 
+function healSchools(schools: School[]): School[] {
+  return schools.map((sch) => {
+    const first = sch.name.trim().split(/\s+/)[0] ?? "";
+    const broken =
+      !sch.shortName ||
+      /^(university|the|college|institute)$/i.test(sch.shortName) ||
+      (sch.name.trim().split(/\s+/).length > 2 && sch.shortName === first);
+    return broken ? { ...sch, shortName: deriveShortName(sch.name) } : sch;
+  });
+}
+
 export const useAppStore = create<Store>()(
   persist(
     (set, get) => ({
@@ -95,7 +109,8 @@ export const useAppStore = create<Store>()(
 
       resetToSeed: () => set({ ...seedData, hydrated: true }),
 
-      replaceData: (data) => set({ ...data, hydrated: true }),
+      replaceData: (data) =>
+        set({ ...data, schools: healSchools(data.schools), hydrated: true }),
 
       updateSettings: (partial) =>
         set((s) => ({ settings: { ...s.settings, ...partial } })),
@@ -104,13 +119,13 @@ export const useAppStore = create<Store>()(
         const id = uid("app");
         const schoolId = uid("sch");
         const programId = uid("prg");
-        const shortName = input.schoolName.split(" ")[0] ?? input.schoolName;
+        const shortName = deriveShortName(input.schoolName);
         set((s) => ({
           schools: [
             ...s.schools,
             {
               id: schoolId,
-              name: input.schoolName,
+              name: input.schoolName.trim(),
               shortName,
               location: "",
             },
@@ -120,9 +135,9 @@ export const useAppStore = create<Store>()(
             {
               id: programId,
               schoolId,
-              name: input.programName,
-              degree: input.degree,
-              department: input.programName,
+              name: input.programName.trim(),
+              degree: input.degree.trim(),
+              department: input.programName.trim(),
             },
           ],
           applications: [
@@ -134,6 +149,7 @@ export const useAppStore = create<Store>()(
               status: "Interested",
               deadline: input.deadline,
               funding: input.funding,
+              portalUrl: input.portalUrl?.trim() || undefined,
               portalEmail: input.portalEmail || undefined,
               portalPassword: input.portalPassword || undefined,
               createdAt: todayISO(),
@@ -143,7 +159,7 @@ export const useAppStore = create<Store>()(
           ],
           timelineEvents: pushEvent(s.timelineEvents, {
             type: "application_created",
-            title: `Added ${shortName} ${input.programName} ${input.degree}`,
+            title: `Added ${shortName} · ${input.programName.trim()} ${input.degree.trim()}`,
             date: todayISO(),
             applicationId: id,
           }),
@@ -170,6 +186,13 @@ export const useAppStore = create<Store>()(
         set((s) => ({
           applications: s.applications.map((a) =>
             a.id === id ? { ...a, ...partial, updatedAt: todayISO() } : a,
+          ),
+        })),
+
+      updateSchool: (id, partial) =>
+        set((s) => ({
+          schools: s.schools.map((sch) =>
+            sch.id === id ? { ...sch, ...partial } : sch,
           ),
         })),
 
@@ -466,6 +489,7 @@ export const useAppStore = create<Store>()(
           createApplication,
           updateApplicationStatus,
           updateApplication,
+          updateSchool,
           createProfessor,
           updateProfessor,
           linkProfessorToApplication,
@@ -477,6 +501,7 @@ export const useAppStore = create<Store>()(
           updatePaper,
           createTopic,
           createDocument,
+          updateDocument,
           addDocumentVersion,
           recordEmail,
           updateRecommendation,
@@ -486,7 +511,10 @@ export const useAppStore = create<Store>()(
         return data;
       },
       onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
+        if (state) {
+          state.schools = healSchools(state.schools);
+          state.setHydrated(true);
+        }
       },
     },
   ),

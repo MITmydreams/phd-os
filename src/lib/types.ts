@@ -74,6 +74,8 @@ export interface Application {
   status: ApplicationStatus;
   deadline: string;
   funding?: string;
+  /** Application portal / ApplyWeb / Slate URL */
+  portalUrl?: string;
   /** Email used to register / log into this school's application portal */
   portalEmail?: string;
   /** Password for the school application portal (stored with your private app data) */
@@ -284,24 +286,4 @@ export const APPLICATION_STATUSES: ApplicationStatus[] = [
   "Interview",
   "Accepted",
   "Rejected",
-  "Withdrawn",
-];
-
-export const BOARD_STATUSES: ApplicationStatus[] = [
-  "Interested",
-  "Researching",
-  "Preparing",
-  "Ready to Submit",
-  "Submitted",
-  "Interview",
-];
-
-export const CONTACT_STATUSES: ContactStatus[] = [
-  "Not Contacted",
-  "Drafted",
-  "Contacted",
-  "Waiting",
-  "Replied",
-  "Follow-up Due",
-  "Archived",
-];
+  "Wi

@@ -9,7 +9,7 @@ import type {
   Requirement,
   Task,
 } from "./types";
-import { clamp, daysUntil } from "./utils";
+import { clamp, daysUntil, schoolShortLabel } from "./utils";
 
 export function getSchool(data: AppData, schoolId: string) {
   return data.schools.find((s) => s.id === schoolId);
@@ -30,7 +30,9 @@ export function getProfessor(data: AppData, id: string) {
 export function applicationLabel(data: AppData, app: Application): string {
   const school = getSchool(data, app.schoolId);
   const program = getProgram(data, app.programId);
-  return `${school?.shortName ?? "School"} ${program?.name ?? "Program"}`;
+  const schoolPart = schoolShortLabel(school);
+  const programPart = program?.name?.trim() || "Program";
+  return `${schoolPart} · ${programPart}`;
 }
 
 export function applicationTitle(data: AppData, app: Application): string {
