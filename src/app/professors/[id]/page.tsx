@@ -825,148 +825,157 @@ export default function ProfessorDetailPage() {
         description="Draft here, then copy into Gmail when ready."
         size="xl"
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <Field label="Subject">
-            <Input
-              value={emailForm.subject}
-              onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-              placeholder="Prospective PhD student — …"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Field label="Direction">
-              <Select
-                value={emailForm.direction}
-                onChange={(e) =>
-                  setEmailForm({
-                    ...emailForm,
-                    direction: e.target.value as "outbound" | "inbound" | "draft",
-                  })
-                }
-              >
-                <option value="outbound">Outbound</option>
-                <option value="inbound">Inbound</option>
-                <option value="draft">Draft</option>
-              </Select>
-            </Field>
-            <Field label="Status">
-              <Select
-                value={emailForm.status}
-                onChange={(e) =>
-                  setEmailForm({
-                    ...emailForm,
-                    status: e.target.value as ContactStatus,
-                  })
-                }
-              >
-                {CONTACT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Date">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 space-y-3 pb-3">
+            <Field label="Subject">
               <Input
-                type="date"
-                value={emailForm.date}
-                onChange={(e) => setEmailForm({ ...emailForm, date: e.target.value })}
+                value={emailForm.subject}
+                onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+                placeholder="Prospective PhD student — …"
               />
             </Field>
-            <Field label="Follow-up">
-              <Input
-                type="date"
-                value={emailForm.followUpDate}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Field label="Direction">
+                <Select
+                  value={emailForm.direction}
+                  onChange={(e) =>
+                    setEmailForm({
+                      ...emailForm,
+                      direction: e.target.value as "outbound" | "inbound" | "draft",
+                    })
+                  }
+                >
+                  <option value="outbound">Outbound</option>
+                  <option value="inbound">Inbound</option>
+                  <option value="draft">Draft</option>
+                </Select>
+              </Field>
+              <Field label="Status">
+                <Select
+                  value={emailForm.status}
+                  onChange={(e) =>
+                    setEmailForm({
+                      ...emailForm,
+                      status: e.target.value as ContactStatus,
+                    })
+                  }
+                >
+                  {CONTACT_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Date">
+                <Input
+                  type="date"
+                  value={emailForm.date}
+                  onChange={(e) => setEmailForm({ ...emailForm, date: e.target.value })}
+                />
+              </Field>
+              <Field label="Follow-up">
+                <Input
+                  type="date"
+                  value={emailForm.followUpDate}
+                  onChange={(e) =>
+                    setEmailForm({ ...emailForm, followUpDate: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
+            <Field label="Related application">
+              <Select
+                value={emailForm.applicationId}
                 onChange={(e) =>
-                  setEmailForm({ ...emailForm, followUpDate: e.target.value })
+                  setEmailForm({ ...emailForm, applicationId: e.target.value })
                 }
-              />
+              >
+                <option value="">None</option>
+                {fits.map((f) => {
+                  const app = getApplication(data, f.applicationId);
+                  return (
+                    <option key={f.id} value={f.applicationId}>
+                      {app ? applicationLabel(data, app) : f.applicationId}
+                    </option>
+                  );
+                })}
+              </Select>
             </Field>
           </div>
-          <Field label="Related application">
-            <Select
-              value={emailForm.applicationId}
-              onChange={(e) =>
-                setEmailForm({ ...emailForm, applicationId: e.target.value })
-              }
-            >
-              <option value="">None</option>
-              {fits.map((f) => {
-                const app = getApplication(data, f.applicationId);
-                return (
-                  <option key={f.id} value={f.applicationId}>
-                    {app ? applicationLabel(data, app) : f.applicationId}
-                  </option>
-                );
-              })}
-            </Select>
-          </Field>
-          <Field label="Email body" className="flex min-h-0 flex-1 flex-col">
+
+          <div className="flex min-h-0 flex-1 flex-col border-t border-border pt-3">
+            <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+              <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-ink-muted">
+                Email body
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!emailForm.content.trim()}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(emailForm.content);
+                    setCopied("body");
+                    window.setTimeout(() => setCopied(null), 1600);
+                  }}
+                >
+                  {copied === "body" ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copied === "body" ? "Copied" : "Copy body"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!emailForm.subject.trim() && !emailForm.content.trim()}
+                  onClick={async () => {
+                    const block = [
+                      emailForm.subject.trim()
+                        ? `Subject: ${emailForm.subject.trim()}`
+                        : null,
+                      emailForm.subject.trim() ? "" : null,
+                      emailForm.content,
+                    ]
+                      .filter((line) => line !== null)
+                      .join("\n");
+                    await navigator.clipboard.writeText(block);
+                    setCopied("all");
+                    window.setTimeout(() => setCopied(null), 1600);
+                  }}
+                >
+                  {copied === "all" ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copied === "all" ? "Copied" : "Copy subject + body"}
+                </Button>
+              </div>
+            </div>
             <Textarea
               value={emailForm.content}
               onChange={(e) => setEmailForm({ ...emailForm, content: e.target.value })}
               placeholder="Dear Professor …"
-              className="min-h-[min(52vh,420px)] flex-1 resize-none font-sans text-[14px] leading-relaxed"
+              className="min-h-0 flex-1 resize-none overflow-y-auto pb-4 font-sans text-[14px] leading-relaxed"
             />
-          </Field>
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                disabled={!emailForm.content.trim()}
-                onClick={async () => {
-                  await navigator.clipboard.writeText(emailForm.content);
-                  setCopied("body");
-                  window.setTimeout(() => setCopied(null), 1600);
-                }}
-              >
-                {copied === "body" ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-                {copied === "body" ? "Copied body" : "Copy body"}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={!emailForm.subject.trim() && !emailForm.content.trim()}
-                onClick={async () => {
-                  const block = [
-                    emailForm.subject.trim()
-                      ? `Subject: ${emailForm.subject.trim()}`
-                      : null,
-                    emailForm.subject.trim() ? "" : null,
-                    emailForm.content,
-                  ]
-                    .filter((line) => line !== null)
-                    .join("\n");
-                  await navigator.clipboard.writeText(block);
-                  setCopied("all");
-                  window.setTimeout(() => setCopied(null), 1600);
-                }}
-              >
-                {copied === "all" ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-                {copied === "all" ? "Copied" : "Copy subject + body"}
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setEmailOpen(false);
-                  setCopied(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={onRecordEmail}>
-                Save
-              </Button>
-            </div>
+          </div>
+
+          <div className="mt-3 flex shrink-0 justify-end gap-2 border-t border-border bg-bg-elevated pt-3">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setEmailOpen(false);
+                setCopied(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={onRecordEmail}>
+              Save
+            </Button>
           </div>
         </div>
       </Dialog>
