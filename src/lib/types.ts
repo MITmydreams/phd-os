@@ -286,4 +286,24 @@ export const APPLICATION_STATUSES: ApplicationStatus[] = [
   "Interview",
   "Accepted",
   "Rejected",
-  "Wi
+  "Withdrawn",
+];
+
+export const BOARD_STATUSES: ApplicationStatus[] = [
+  "Interested",
+  "Researching",
+  "Preparing",
+  "Ready to Submit",
+  "Submitted",
+  "Interview",
+];
+
+export const CONTACT_STATUSES: ContactStatus[] = [
+  "Not Contacted",
+  "Drafted",
+  "Contacted",
+  "Waiting",
+  "Replied",
+  "Follow-up Due",
+  "Archived",
+];
