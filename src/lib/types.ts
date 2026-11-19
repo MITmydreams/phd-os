@@ -74,6 +74,10 @@ export interface Application {
   status: ApplicationStatus;
   deadline: string;
   funding?: string;
+  /** Email used to register / log into this school's application portal */
+  portalEmail?: string;
+  /** Password for the school application portal (stored with your private app data) */
+  portalPassword?: string;
   notes?: string;
   nextActionTaskId?: string;
   createdAt: string;

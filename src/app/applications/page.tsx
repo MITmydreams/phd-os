@@ -96,6 +96,8 @@ export default function ApplicationsPage() {
     cycle: data.settings.cycle,
     deadline: "",
     funding: "",
+    portalEmail: "",
+    portalPassword: "",
   });
 
   const counts = statusCounts(data);
@@ -111,8 +113,22 @@ export default function ApplicationsPage() {
 
   const onCreate = () => {
     if (!form.schoolName || !form.deadline) return;
-    const id = createApplication(form);
+    const id = createApplication({
+      ...form,
+      portalEmail: form.portalEmail.trim() || undefined,
+      portalPassword: form.portalPassword || undefined,
+    });
     setOpen(false);
+    setForm({
+      schoolName: "",
+      programName: "Computer Science",
+      degree: "PhD",
+      cycle: data.settings.cycle,
+      deadline: "",
+      funding: "",
+      portalEmail: "",
+      portalPassword: "",
+    });
     router.push(`/applications/${id}`);
   };
 
@@ -339,6 +355,29 @@ export default function ApplicationsPage() {
               />
             </Field>
           </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Portal email">
+              <Input
+                type="email"
+                value={form.portalEmail}
+                onChange={(e) => setForm({ ...form, portalEmail: e.target.value })}
+                placeholder="you@gmail.com"
+                autoComplete="off"
+              />
+            </Field>
+            <Field label="Portal password">
+              <Input
+                type="password"
+                value={form.portalPassword}
+                onChange={(e) => setForm({ ...form, portalPassword: e.target.value })}
+                placeholder="Optional"
+                autoComplete="new-password"
+              />
+            </Field>
+          </div>
+          <p className="text-[11px] text-ink-faint">
+            Portal login is stored with your private application data (not shown on the board).
+          </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel

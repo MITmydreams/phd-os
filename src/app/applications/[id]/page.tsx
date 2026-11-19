@@ -3,7 +3,7 @@
 import { EmailReader } from "@/components/email-reader";
 import { StatusBadge, ProgressBar } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, Select, Textarea } from "@/components/ui/field";
+import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import {
   EmptyState,
   PageHeader,
@@ -28,7 +28,7 @@ import {
 import { useAppStore, useData } from "@/lib/store";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/types";
 import { cn, daysUntil, formatDate, formatDateLong } from "@/lib/utils";
-import { Check, ExternalLink } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -56,6 +56,8 @@ export default function ApplicationDetailPage() {
   const [tab, setTab] = useState<Tab>("Documents");
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
   const [readingEmailId, setReadingEmailId] = useState<string | null>(null);
+  const [showPortalPassword, setShowPortalPassword] = useState(false);
+  const [portalCopied, setPortalCopied] = useState<"email" | "password" | null>(null);
 
   const app = data.applications.find((a) => a.id === id);
 
@@ -601,6 +603,91 @@ export default function ApplicationDetailPage() {
                   Program site <ExternalLink className="h-3 w-3" />
                 </a>
               ) : null}
+            </Panel>
+          </Section>
+
+          <Section
+            title="Portal login"
+            description="Email & password for this school's application system"
+          >
+            <Panel className="space-y-3 p-4">
+              <Field label="Registration email">
+                <div className="flex gap-1.5">
+                  <Input
+                    type="email"
+                    value={app.portalEmail ?? ""}
+                    onChange={(e) =>
+                      updateApplication(app.id, {
+                        portalEmail: e.target.value.trim() || undefined,
+                      })
+                    }
+                    placeholder="you@gmail.com"
+                    autoComplete="off"
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!app.portalEmail}
+                    aria-label="Copy portal email"
+                    onClick={async () => {
+                      if (!app.portalEmail) return;
+                      await navigator.clipboard.writeText(app.portalEmail);
+                      setPortalCopied("email");
+                      window.setTimeout(() => setPortalCopied(null), 1400);
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    {portalCopied === "email" ? "OK" : null}
+                  </Button>
+                </div>
+              </Field>
+              <Field label="Password">
+                <div className="flex gap-1.5">
+                  <Input
+                    type={showPortalPassword ? "text" : "password"}
+                    value={app.portalPassword ?? ""}
+                    onChange={(e) =>
+                      updateApplication(app.id, {
+                        portalPassword: e.target.value || undefined,
+                      })
+                    }
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    className="min-w-0 flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={showPortalPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPortalPassword((v) => !v)}
+                  >
+                    {showPortalPassword ? (
+                      <EyeOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={!app.portalPassword}
+                    aria-label="Copy portal password"
+                    onClick={async () => {
+                      if (!app.portalPassword) return;
+                      await navigator.clipboard.writeText(app.portalPassword);
+                      setPortalCopied("password");
+                      window.setTimeout(() => setPortalCopied(null), 1400);
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    {portalCopied === "password" ? "OK" : null}
+                  </Button>
+                </div>
+              </Field>
+              <p className="text-[11px] text-ink-faint">
+                Saved with your private app data. Only you can see it on this site.
+              </p>
             </Panel>
           </Section>
 

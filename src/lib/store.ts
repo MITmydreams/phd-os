@@ -30,6 +30,8 @@ type CreateApplicationInput = {
   cycle: string;
   deadline: string;
   funding?: string;
+  portalEmail?: string;
+  portalPassword?: string;
 };
 
 type Store = AppData & {
@@ -132,6 +134,8 @@ export const useAppStore = create<Store>()(
               status: "Interested",
               deadline: input.deadline,
               funding: input.funding,
+              portalEmail: input.portalEmail || undefined,
+              portalPassword: input.portalPassword || undefined,
               createdAt: todayISO(),
               updatedAt: todayISO(),
             },
